@@ -24,12 +24,12 @@ func Service(app http.Handler, endpoint string) error {
 
 		res, err := http.DefaultClient.Do(serviceReq)
 		if err != nil {
-			return err
+			return errors.New("unable to create service")
 		}
 		if res.StatusCode == 200 {
 			return nil
 		} else {
-			return errors.New("error")
+			return errors.New("unable to create service")
 		}
 	}
 
