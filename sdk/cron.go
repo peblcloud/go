@@ -8,6 +8,15 @@ import (
 	"os"
 )
 
+// Cron creates a scheduled task.
+//
+// The name identifies the scheduled task, and subsequent
+// uses of the same name will overwrite the same logical
+// task.
+//
+// The schedule must be valid cron schedule with 5 fields
+// separated by spaces. It also accepts @hourly and @daily,
+// which are shorthand for "0 * * * *" and "0 0 * * *" respectively.
 func Cron(name, schedule string, method func()) error {
 	context := os.Getenv("__PEBL_CONTEXT")
 

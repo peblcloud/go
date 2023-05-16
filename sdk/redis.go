@@ -10,11 +10,14 @@ import (
 	"strings"
 )
 
+// RedisConn provides the Host and Port of the target redis instance
 type RedisConn struct {
 	Host string
 	Port int
 }
 
+// Redis returns connection information for the provided redis instance
+// with the name `name`
 func Redis(name string) (*RedisConn, error) {
 	kernelURL := os.Getenv("__PEBL_KERNEL_URL")
 	kernelPort := os.Getenv("__PEBL_KERNEL_PORT")

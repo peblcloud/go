@@ -41,6 +41,12 @@ func makeRequest(path, mode string) (net.Conn, error) {
 	return conn, nil
 }
 
+// Write returns an object with io.WriteCloser interface.
+// Close() must be called before the contents of the Write()
+// are made available at the provided path.
+//
+// Interleaving Read and Write on the same path may result in
+// unexpected behavior.
 func Write(path string) (io.WriteCloser, error) {
 	conn, err := makeRequest(path, "w")
 	if err != nil {
@@ -49,6 +55,10 @@ func Write(path string) (io.WriteCloser, error) {
 	return conn.(io.WriteCloser), nil
 }
 
+// Read returns an object with io.ReadCloser interface.
+//
+// Interleaving Read and Write on the same path may result in
+// unexpected behavior.
 func Read(path string) (io.ReadCloser, error) {
 	conn, err := makeRequest(path, "r")
 	if err != nil {

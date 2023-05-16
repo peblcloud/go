@@ -1,3 +1,8 @@
+// Package sdk provides go bindings for pebl's system calls.
+//
+// For more detailed guides on utilizing pebl, check out [the docs]
+//
+// [the docs]: https://docs.pebl.io/
 package sdk
 
 import (
@@ -8,6 +13,11 @@ import (
 	"os"
 )
 
+// Service takes an http.Handler and creates a serving
+// resource at the endpoint.
+//
+// The endpoint must be a valid domain owned by the
+// user.
 func Service(app http.Handler, endpoint string) error {
 	context := os.Getenv("__PEBL_CONTEXT")
 
