@@ -3,7 +3,7 @@
 // For more detailed guides on utilizing pebl, check out [the docs]
 //
 // [the docs]: https://docs.pebl.io/
-package sdk
+package pebl
 
 import (
 	"errors"
