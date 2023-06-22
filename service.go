@@ -44,7 +44,7 @@ func Service(app http.Handler, endpoint string) error {
 		}
 	}
 
-	if context != endpoint {
+	if context != fmt.Sprintf("service:%s", endpoint) {
 		return nil
 	}
 
@@ -93,7 +93,7 @@ func InternalService(app http.Handler, endpoint string) error {
 		}
 	}
 
-	if context != endpoint {
+	if context != fmt.Sprintf("iservice:%s", endpoint) {
 		return nil
 	}
 

@@ -41,7 +41,7 @@ func Cron(name, schedule string, method func()) error {
 		return nil
 	}
 
-	if context == name {
+	if context == fmt.Sprintf("cron:%s", name) {
 		method()
 		os.Exit(0)
 	}
