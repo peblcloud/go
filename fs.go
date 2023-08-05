@@ -7,16 +7,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 )
 
 func makeRequest(path, mode string) (net.Conn, error) {
-	kernelURL := os.Getenv("__PEBL_KERNEL_URL")
-	kernelPort := os.Getenv("__PEBL_KERNEL_PORT")
-	token := os.Getenv("__PEBL_TOKEN")
+	kernelURL, kernelPort, token := checkEnv()
 
 	query := url.Values{}
-	query.Add("token", token)
 	query.Add("path", path)
 	query.Add("mode", mode)
 
@@ -30,6 +26,8 @@ func makeRequest(path, mode string) (net.Conn, error) {
 
 	conn.Write([]byte(fmt.Sprintf("GET /open?%s HTTP/1.1\r\n", query.Encode())))
 	conn.Write([]byte(fmt.Sprintf("Host: %s:%s\r\n", kernelURL, kernelPort)))
+	conn.Write([]byte("VERSION: 0.1.0"))
+	conn.Write([]byte(fmt.Sprintf("TOKEN: %s", token)))
 	conn.Write([]byte("Content-Length: 0\r\n\r\n"))
 
 	var payload [1]byte
@@ -50,6 +48,8 @@ func makeRequest(path, mode string) (net.Conn, error) {
 func Write(path string) (io.WriteCloser, error) {
 	conn, err := makeRequest(path, "w")
 	if err != nil {
+		println(fmt.Sprintf("Exception during: Write(%s)", path))
+		println(err.Error())
 		return nil, err
 	}
 	return conn.(io.WriteCloser), nil
@@ -62,6 +62,8 @@ func Write(path string) (io.WriteCloser, error) {
 func Read(path string) (io.ReadCloser, error) {
 	conn, err := makeRequest(path, "r")
 	if err != nil {
+		println(fmt.Sprintf("Exception during: Read(%s)", path))
+		println(err.Error())
 		return nil, err
 	}
 	return conn.(io.ReadCloser), nil

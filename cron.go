@@ -1,10 +1,9 @@
 package pebl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 )
 
@@ -18,33 +17,44 @@ import (
 // separated by spaces. It also accepts @hourly and @daily,
 // which are shorthand for "0 * * * *" and "0 0 * * *" respectively.
 func Cron(name, schedule string, method func()) error {
-	context := os.Getenv("__PEBL_CONTEXT")
+	res, err := send(&requestArgs{
+		method: "GET",
+		path:   "cron",
+		query: map[string]string{
+			"name":     name,
+			"schedule": schedule,
+		},
+	})
 
-	if context == "" {
-		kernelURL := os.Getenv("__PEBL_KERNEL_URL")
-		kernelPort := os.Getenv("__PEBL_KERNEL_PORT")
-		token := os.Getenv("__PEBL_TOKEN")
+	if err != nil {
+		println(fmt.Sprintf("Exception during Cron(%s, %s)", name, schedule))
+		println("unable to access kernel")
+		return errors.New("unable to access kernel")
+	}
 
-		query := url.Values{}
-		query.Add("token", token)
-		query.Add("schedule", schedule)
-		query.Add("name", name)
+	body := struct {
+		Status int    `json:"status"`
+		Error  string `json:"error"`
+	}{}
+	json.NewDecoder(res.Body).Decode(&body)
 
-		req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s:%s/cron", kernelURL, kernelPort), nil)
-		req.URL.RawQuery = query.Encode()
+	if res.StatusCode != 200 || body.Status == 1 {
+		println(fmt.Sprintf("Exception during Cron(%s, %s)", name, schedule))
+		println(body.Error)
+		return errors.New(body.Error)
+	}
 
-		res, err := http.DefaultClient.Do(req)
-		if err != nil || res.StatusCode != 200 {
-			return errors.New(fmt.Sprintf("unable to create cron: %s schedule %s", name, schedule))
-		}
-
+	if body.Status == 0 {
 		return nil
 	}
 
-	if context == fmt.Sprintf("cron:%s", name) {
-		method()
-		os.Exit(0)
+	if body.Status != 2 {
+		println(fmt.Sprintf("Exception during Cron(%s, %s)", name, schedule))
+		println("received an unrecognized payload, are you perhaps running on an outdated version?")
+		return errors.New("unrecognized response")
 	}
 
+	method()
+	os.Exit(0)
 	return nil
 }

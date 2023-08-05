@@ -1,77 +1,69 @@
 package pebl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
 )
 
 func KVGet(key string) (string, bool, error) {
-	kernelURL := os.Getenv("__PEBL_KERNEL_URL")
-	kernelPort := os.Getenv("__PEBL_KERNEL_PORT")
-	token := os.Getenv("__PEBL_TOKEN")
+	res, err := send(&requestArgs{
+		method: "GET",
+		path:   "kv",
+		query: map[string]string{
+			"key": key,
+		},
+	})
 
-	query := url.Values{}
-	query.Add("token", token)
-	query.Add("key", key)
-
-	req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s:%s/kv", kernelURL, kernelPort), nil)
-	req.URL.RawQuery = query.Encode()
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
+		println(fmt.Sprintf("Exception during KVGet(%s)", key))
+		println("unable to access kernel")
 		return "", false, errors.New("unable to access kernel")
 	}
 
-	var payload [2048]byte
-	read, err := res.Body.Read(payload[:])
-	if read <= 2 {
-		return "", false, errors.New("unable to access kernel")
+	body := struct {
+		Status int    `json:"status"`
+		Error  string `json:"error"`
+		Data   string `json:"data"`
+		Found  bool   `json:"found"`
+	}{}
+	json.NewDecoder(res.Body).Decode(&body)
+
+	if res.StatusCode != 200 || body.Status == 1 {
+		println(fmt.Sprintf("Exception during KVGet(%s)", key))
+		println(body.Error)
+		return "", false, errors.New(body.Error)
 	}
 
-	if payload[0] == '0' {
-		return string(payload[2:read]), true, nil
-	}
-
-	if payload[0] == '1' {
-		return "", false, nil
-	}
-
-	return "", false, errors.New(string(payload[2:read]))
+	return body.Data, body.Found, nil
 }
 
 func KVSet(key, value string) error {
-	kernelURL := os.Getenv("__PEBL_KERNEL_URL")
-	kernelPort := os.Getenv("__PEBL_KERNEL_PORT")
-	token := os.Getenv("__PEBL_TOKEN")
+	res, err := send(&requestArgs{
+		method: "POST",
+		path:   "kv",
+		body: map[string]string{
+			key: value,
+		},
+	})
 
-	body := url.Values{}
-	body.Add(key, value)
-
-	req, _ := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/kv", kernelURL, kernelPort), strings.NewReader(body.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	query := url.Values{}
-	query.Add("token", token)
-	req.URL.RawQuery = query.Encode()
-
-	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		println(fmt.Sprintf("Exception during KVGet(%s)", key))
+		println("unable to access kernel")
 		return errors.New("unable to access kernel")
 	}
 
-	if res.StatusCode == 200 {
-		return nil
+	body := struct {
+		Status int    `json:"status"`
+		Error  string `json:"error"`
+	}{}
+	json.NewDecoder(res.Body).Decode(&body)
+
+	if res.StatusCode != 200 || body.Status == 1 {
+		println(fmt.Sprintf("Exception during KVGet(%s)", key))
+		println(body.Error)
+		return errors.New(body.Error)
 	}
 
-	var payload [1024]byte
-	read, err := res.Body.Read(payload[:])
-	if read > 0 {
-		return errors.New(string(payload[:read]))
-	}
-
-	return errors.New("unable to access kernel")
+	return nil
 }

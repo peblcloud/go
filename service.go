@@ -6,11 +6,11 @@
 package pebl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"net/url"
-	"os"
 )
 
 // Service takes an http.Handler and creates a serving
@@ -20,40 +20,49 @@ import (
 // The endpoint must be a valid domain owned by the
 // user.
 func Service(app http.Handler, endpoint string) error {
-	context := os.Getenv("__PEBL_CONTEXT")
+	res, err := send(&requestArgs{
+		method: "GET",
+		path:   "service",
+		query: map[string]string{
+			"endpoint": endpoint,
+			"internal": "0",
+		},
+	})
 
-	if context == "" {
-		kernelURL := os.Getenv("__PEBL_KERNEL_URL")
-		kernelPort := os.Getenv("__PEBL_KERNEL_PORT")
-		token := os.Getenv("__PEBL_TOKEN")
-
-		serviceReq, _ := http.NewRequest("GET", fmt.Sprintf("http://%s:%s/service", kernelURL, kernelPort), nil)
-		query := url.Values{}
-		query.Add("token", token)
-		query.Add("endpoint", endpoint)
-		serviceReq.URL.RawQuery = query.Encode()
-
-		res, err := http.DefaultClient.Do(serviceReq)
-		if err != nil {
-			return errors.New("unable to create service")
-		}
-		if res.StatusCode == 200 {
-			return nil
-		} else {
-			return errors.New("unable to create service")
-		}
+	if err != nil {
+		println(fmt.Sprintf("Exception during Service(app, %s)", endpoint))
+		println("unable to access kernel")
+		return errors.New("unable to access kernel")
 	}
 
-	if context != fmt.Sprintf("service:%s", endpoint) {
+	body := struct {
+		Status int    `json:"status"`
+		Error  string `json:"error"`
+	}{}
+
+	json.NewDecoder(res.Body).Decode(&body)
+
+	if res.StatusCode != 200 || body.Status == 1 {
+		println(fmt.Sprintf("Exception during Service(app, %s)", endpoint))
+		println(body.Error)
+		return errors.New(body.Error)
+	}
+
+	if body.Status == 0 {
 		return nil
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		app.ServeHTTP(w, r)
-	})
+	if body.Status != 2 {
+		println(fmt.Sprintf("Exception during Service(app, %s)", endpoint))
+		println("received an unrecognized payload, are you perhaps running on an outdated version?")
+		return errors.New("unrecognized response")
+	}
 
-	http.ListenAndServe(":80", mux)
+	s := http.Server{
+		Addr:    ":80",
+		Handler: app,
+	}
+	log.Fatal(s.ListenAndServe())
 	return nil
 }
 
@@ -66,42 +75,48 @@ func Service(app http.Handler, endpoint string) error {
 // Though in general we recommend a scheme to easily identify internal
 // vs. external services, something like `foo.local` or `bar.private`.
 func InternalService(app http.Handler, endpoint string) error {
-	context := os.Getenv("__PEBL_CONTEXT")
+	res, err := send(&requestArgs{
+		method: "GET",
+		path:   "service",
+		query: map[string]string{
+			"endpoint": endpoint,
+			"internal": "1",
+		},
+	})
 
-	if context == "" {
-		kernelURL := os.Getenv("__PEBL_KERNEL_URL")
-		kernelPort := os.Getenv("__PEBL_KERNEL_PORT")
-		token := os.Getenv("__PEBL_TOKEN")
-
-		serviceReq, _ := http.NewRequest("GET", fmt.Sprintf("http://%s:%s/service", kernelURL, kernelPort), nil)
-		query := url.Values{}
-		query.Add("token", token)
-		query.Add("endpoint", endpoint)
-		query.Add("internal", "1")
-		serviceReq.URL.RawQuery = query.Encode()
-
-		res, err := http.DefaultClient.Do(serviceReq)
-		if err != nil {
-			println(err.Error())
-			return errors.New("unable to create service")
-		}
-		if res.StatusCode == 200 {
-			return nil
-		} else {
-			println(res.Status)
-			return errors.New("unable to create service")
-		}
+	if err != nil {
+		println(fmt.Sprintf("Exception during InternalService(app, %s)", endpoint))
+		println("unable to access kernel")
+		return errors.New("unable to access kernel")
 	}
 
-	if context != fmt.Sprintf("iservice:%s", endpoint) {
+	body := struct {
+		Status int    `json:"status"`
+		Error  string `json:"error"`
+	}{}
+
+	json.NewDecoder(res.Body).Decode(&body)
+
+	if res.StatusCode != 200 || body.Status == 1 {
+		println(fmt.Sprintf("Exception during InternalService(app, %s)", endpoint))
+		println(body.Error)
+		return errors.New(body.Error)
+	}
+
+	if body.Status == 0 {
 		return nil
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		app.ServeHTTP(w, r)
-	})
+	if body.Status != 2 {
+		println(fmt.Sprintf("Exception during InternalService(app, %s)", endpoint))
+		println("received an unrecognized payload, are you perhaps running on an outdated version?")
+		return errors.New("unrecognized response")
+	}
 
-	http.ListenAndServe(":80", mux)
+	s := http.Server{
+		Addr:    ":80",
+		Handler: app,
+	}
+	log.Fatal(s.ListenAndServe())
 	return nil
 }
