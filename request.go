@@ -65,7 +65,6 @@ func send(args *requestArgs) (*http.Response, error) {
 	res, err := http.DefaultClient.Do(request)
 
 	if newToken := res.Header.Get("Token"); newToken != "" {
-		println(" -- new token")
 		os.Setenv("__PEBL_TOKEN", newToken)
 	}
 
