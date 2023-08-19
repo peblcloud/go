@@ -12,7 +12,7 @@ import (
 func Mount(name, path string) error {
 	conn, err := rawSend(&requestArgs{
 		method: "GET",
-		path: "mount",
+		path:   "mount",
 		query: map[string]string{
 			"name": name,
 		},
@@ -23,6 +23,8 @@ func Mount(name, path string) error {
 		println(err.Error())
 		return errors.New("unable to access the kernel")
 	}
+
+	defer conn.Close()
 
 	buf := make([]byte, 4096)
 	conn.Read(buf[:1])
@@ -54,8 +56,8 @@ func Mount(name, path string) error {
 			os.MkdirAll(path, 0o777)
 		case tar.TypeReg | tar.TypeRegA:
 			path := filepath.Join(path, header.Name)
-			
-			f, err := os.OpenFile(path, os.O_CREATE | os.O_WRONLY, os.FileMode(header.Mode))
+
+			f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
 				println(fmt.Sprintf("Exeption during Mount(%s, %s)", name, path))
 				println(fmt.Sprintf("unable to create %s", header.Name))
@@ -63,6 +65,7 @@ func Mount(name, path string) error {
 			}
 
 			io.Copy(f, reader)
+			f.Close()
 		default:
 			println("[WARN] unknown file type %d for %s", header.Typeflag, header.Name)
 		}
